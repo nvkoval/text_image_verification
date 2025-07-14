@@ -3,6 +3,7 @@ import re
 import json
 import logging
 from typing import List, Dict, Tuple
+from pathlib import Path
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -15,14 +16,18 @@ from torch.optim import AdamW
 from sklearn.metrics import precision_recall_fscore_support
 from tqdm import tqdm
 
+import sys
+sys.path.append(str(Path(__file__).parent.parent))
+import constants
 
-logging.basicConfig(level=logging.INFO)
+# Set random seed from constants
+torch.manual_seed(constants.RANDOM_SEED)
+
+# Setup logging
+logging.basicConfig(level=getattr(logging, constants.LOG_LEVEL),
+                    format=constants.LOG_FORMAT,
+                    force=True)
 logger = logging.getLogger(__name__)
-
-animal_classes = [
-    'butterfly', 'cat', 'chicken', 'cow', 'dog',
-    'elephant', 'horse', 'sheep', 'spider', 'squirrel'
-]
 
 
 class AnimalNERDataset(Dataset):
@@ -92,23 +97,39 @@ class AnimalNERTrainer:
 
     def __init__(
         self,
-        model_name: str = 'dslim/distilbert-NER',
-        animal_classes: List[str] = animal_classes
+        model_name: str = None,
+        animal_classes: List[str] = None,
+        data_dir: str = None,
+        model_path: str = None,
+        batch_size: int = None,
+        learning_rate: float = None,
+        max_length: int = None,
+        epochs: int = None
     ):
-        self.device = torch.device(
-            'cuda' if torch.cuda.is_available() else 'cpu'
-        )
-        logger.info(f"Using device: {self.device}")
+        # Use provided parameters or defaults from constants
+        self.model_name = model_name or constants.NER_MODEL_NAME
+        self.animal_classes = animal_classes or constants.ANIMAL_CLASSES
+        self.data_dir = data_dir or constants.NER_DATA_DIR
+        self.model_path = model_path or constants.NER_MODEL_PATH
+        self.batch_size = batch_size or constants.NER_BATCH_SIZE
+        self.learning_rate = learning_rate or constants.NER_LEARNING_RATE
+        self.max_length = max_length or constants.NER_MAX_LENGTH
+        self.epochs = epochs or constants.NER_EPOCHS
 
         self.label_to_id = {'O': 0, 'B-ANIMAL': 1}
         self.id_to_label = {v: k for k, v in self.label_to_id.items()}
 
-        # self.model_name = model_name
-        # self.animal_classes = animal_classes
+        # Get device from constants
+        if constants.DEVICE == 'auto':
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        else:
+            self.device = torch.device(constants.DEVICE)
 
-        self.tokenizer = DistilBertTokenizerFast.from_pretrained(model_name)
+        logger.info(f"Using device: {self.device}")
+
+        self.tokenizer = DistilBertTokenizerFast.from_pretrained(self.model_name)
         self.model = DistilBertForTokenClassification.from_pretrained(
-            model_name,
+            self.model_name,
             num_labels=len(self.label_to_id),
             ignore_mismatched_sizes=True
         ).to(self.device)
@@ -212,14 +233,26 @@ class AnimalNERTrainer:
 
     def train(
         self,
-        train_data: List[Dict],
-        val_data: List[Dict],
-        epochs: int = 3,
-        batch_size: int = 16,
-        learning_rate: float = 5e-5,
-        save_path: str = './ner_model'
+        train_data: List[Dict] = None,
+        val_data: List[Dict] = None,
+        epochs: int = None,
+        batch_size: int = None,
+        learning_rate: float = None,
+        save_path: str = None
     ):
         """Main training loop."""
+        # Use provided parameters or defaults
+        epochs = epochs or self.epochs
+        batch_size = batch_size or self.batch_size
+        learning_rate = learning_rate or self.learning_rate
+        save_path = save_path or self.model_path
+
+        # Load data if not provided
+        if train_data is None:
+            train_data = self.load_data(os.path.join(self.data_dir, 'train_ner.json'))
+        if val_data is None:
+            val_data = self.load_data(os.path.join(self.data_dir, 'val_ner.json'))
+
         train_loader = self.create_dataloader(train_data,
                                               batch_size=batch_size,
                                               shuffle=True)
@@ -308,8 +341,11 @@ class AnimalNERTrainer:
         ]
         return entities
 
-    def save_model(self, save_path: str = './ner_model'):
+    def save_model(self, save_path: str = None):
         """Saves the model and tokenizer to the specified directory."""
+        if save_path is None:
+            save_path = self.model_path
+
         os.makedirs(save_path, exist_ok=True)
         self.model.save_pretrained(save_path)
         self.tokenizer.save_pretrained(save_path)
@@ -320,8 +356,11 @@ class AnimalNERTrainer:
                 'id_to_label': self.id_to_label
             }, f, indent=4)
 
-    def load_model(self, model_path: str):
+    def load_model(self, model_path: str = None):
         """Loads saved model and tokenizer from the specified directory."""
+        if model_path is None:
+            model_path = self.model_path
+
         self.model = DistilBertForTokenClassification.from_pretrained(
             model_path
         ).to(self.device)
