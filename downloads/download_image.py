@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 ZIP_PATH = 'data/test/animals.zip'
-EXTRACT_DIR = 'data/test/images'
+EXTRACT_DIR = 'data/images'
 FILE_ID = '10bGs8aTsRttHz7K6T5KP-FyAe-nxOynb'  # ← Replace with your actual file ID
 
 def load_dataset_if_needed(

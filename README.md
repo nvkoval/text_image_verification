@@ -14,10 +14,11 @@ This project implements a multi-modal ML pipeline that:
 ## 📁 Project Structure
 ```
 text_image_verification/
+
 ├── classifier/                 # Image classification module
 │   ├── trainer_classifier.py   # Training script for image classifier
 │   ├── train_and_evaluate_classifier.py  # Main training script
-│   ├── inference_classifier.py # Inference script
+│   └── inference_classifier.py # Inference script
 │   └── download_image.py       # Image dataset download script
 ├── ner/                        # Named Entity Recognition module
 │   ├── trainer_ner.py          # Training script for NER model
@@ -25,6 +26,9 @@ text_image_verification/
 │   └── inference_ner.py        # Inference script
 ├── pipeline/                   # Main pipeline
 │   └── pipeline.py             # Combined text-image verification
+├── download/                   # Scripts for downloading datasets and models
+│   ├── download_image.py       # Image dataset download script
+│   └── download_models.py      # Pretrained model download script
 ├── models/                     # Trained models
 │   ├── image_classifier/       # Image classification model
 │   └── ner_model/              # NER model
@@ -52,7 +56,7 @@ Due to GitHub file size limits, the image dataset is **stored externally on Goog
 Download it with:
 ```bash
 pip install gdown
-python classifier/download_image.py
+python download/download_image.py
 ```
 
 Or manually from [Google Drive](https://drive.google.com/file/d/10bGs8aTsRttHz7K6T5KP-FyAe-nxOynb/) and unzip it into `data/images/`.
@@ -93,6 +97,14 @@ Provide JSON files with the following format:
 - **Image Classifier**: EfficientNet-B0 with pretrained weights
 - **NER Model**: DistilBERT-NER with token classification head
 - **Pipeline**: Combines both models for verification
+
+### Downloading Pretrained Models
+
+To download pretrained models (if you don't want to train from scratch), run:
+```bash
+python download/download_models.py
+```
+This will download required model files into the `models/` directory.
 
 ## Installation
 
